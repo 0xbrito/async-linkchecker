@@ -5,9 +5,7 @@ fn parse_urls(content: &str) -> Vec<&str> {
         .lines()
         .filter_map(|line| {
             let trimmed = line.trim();
-            trimmed
-                .strip_prefix("- ")
-                .map(|url| url.trim())
+            trimmed.strip_prefix("- ").map(|url| url.trim())
         })
         .collect()
 }
@@ -20,7 +18,7 @@ fn main() {
         process::exit(1);
     });
 
-    let urls = parse_urls(&content);
+    let _urls = parse_urls(&content);
 
     todo!();
 }
