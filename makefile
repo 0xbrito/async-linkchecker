@@ -4,7 +4,7 @@ build:
 	cargo build
 
 run:
-	cargo run -- input.md
+	cargo run -- input.md output.md
 
 test:
 	cargo test
