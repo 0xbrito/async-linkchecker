@@ -59,8 +59,10 @@ async fn fetch_title_or_human_readable_error(client: &Client, url: &str) -> Resu
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    let file_path = &args[1];
-    let content = fs::read_to_string(file_path).unwrap_or_else(|e| {
+    let input_file_path = &args[1];
+    let output_file_path = &args[2];
+
+    let content = fs::read_to_string(input_file_path).unwrap_or_else(|e| {
         eprintln!("Failed to read file: {e}");
         process::exit(1);
     });
@@ -93,7 +95,7 @@ async fn main() {
         output.push_str(&format!("{line}\n"));
     }
 
-    fs::write("output.md", output).unwrap_or_else(|e| {
+    fs::write(output_file_path, output).unwrap_or_else(|e| {
         eprintln!("Failed to write output file: {e}");
         process::exit(1);
     });

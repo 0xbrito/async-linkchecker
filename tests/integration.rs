@@ -20,12 +20,14 @@ async fn extracts_title_from_succesful_res() {
     let input_path = "/tmp/input_mock.md";
     let _ = fs::write(input_path, format!("- {url}"));
 
+    let output_path = "/tmp/output.md";
+
     Command::new("cargo")
-        .args(["run", "--", input_path])
+        .args(["run", "--", input_path, &output_path])
         .output()
         .expect("failed to execute process");
 
-    let output = fs::read_to_string("output.md").unwrap();
+    let output = fs::read_to_string(&output_path).unwrap();
 
     assert_eq!(output.trim(), format!("- [Some Title]({url})"));
 }
@@ -45,12 +47,14 @@ async fn returns_human_readable_error_for_http_error() {
     let input_path = "/tmp/input_mock_404.md";
     let _ = fs::write(input_path, format!("- {url}"));
 
+    let output_path = "/tmp/output.md";
+
     Command::new("cargo")
-        .args(["run", "--", input_path])
+        .args(["run", "--", input_path, &output_path])
         .output()
         .expect("failed to execute process");
 
-    let output = fs::read_to_string("output.md").unwrap();
+    let output = fs::read_to_string(&output_path).unwrap();
 
     assert_eq!(output.trim(), format!("- [404 Not Found]({url})"));
 }
