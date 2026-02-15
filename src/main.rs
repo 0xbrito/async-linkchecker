@@ -93,7 +93,8 @@ async fn main() {
         output.push_str(&format!("{line}\n"));
     }
 
-    let _ = fs::write("output.md", output);
-
-    process::exit(0);
+    fs::write("output.md", output).unwrap_or_else(|e| {
+        eprintln!("Failed to write output file: {e}");
+        process::exit(1);
+    });
 }
