@@ -15,34 +15,45 @@ fn parse_urls(content: &str) -> Vec<String> {
         .collect()
 }
 
-async fn try_to_fetch_url(client: &Client, url: &str) -> String {
-    let result = client.get(url).send().await;
-    match result {
-        Ok(response) => {
-            if response.status().is_success() {
-                let body = response.text().await.unwrap();
-                let selector = Selector::parse("title").unwrap();
-                let page_title: String = Html::parse_document(&body)
-                    .select(&selector)
-                    .next()
-                    .map(|el| el.inner_html())
-                    .unwrap_or("No title".to_string())
-                    .split_whitespace()
-                    .collect::<Vec<_>>()
-                    .join(" ");
-
-                format!("- [{page_title}]({url})")
-            } else {
-                let reason = response
-                    .status()
-                    .canonical_reason()
-                    .unwrap_or("Unknown Error");
-
-                format!("- [{reason}]({url})")
-            }
+async fn fetch_title(client: &Client, url: &str) -> Result<String, String> {
+    let response = client.get(url).send().await.map_err(|e| {
+        if e.is_timeout() {
+            "Timeout".into()
+        } else if e.is_connect() {
+            "Connection Error".into()
+        } else {
+            format!("{}", e.without_url())
         }
-        Err(e) => format!("- [{}]({})", e.without_url(), url),
+    })?;
+
+    if !response.status().is_success() {
+        let code = response.status().as_u16();
+        let reason = response
+            .status()
+            .canonical_reason()
+            .unwrap_or("Unknown Error");
+
+        return Err(format!("{code} {reason}"));
     }
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| e.without_url().to_string())?;
+    let selector = Selector::parse("title").unwrap();
+
+    let title = Html::parse_document(&body)
+        .select(&selector)
+        .next()
+        .map(|el| {
+            el.inner_html()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .unwrap_or("No Title".into());
+
+    Ok(title)
 }
 
 #[tokio::main]
@@ -65,7 +76,10 @@ async fn main() {
 
         let jh = spawn(async move {
             let _permit = semaphore.acquire().await.unwrap();
-            try_to_fetch_url(&client, &url).await
+            match fetch_title(&client, &url).await {
+                Ok(title) => format!("- [{title}]({url})"),
+                Err(reason) => format!("- [{reason}]({url})"),
+            }
         });
 
         jhs.push(jh);
