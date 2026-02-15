@@ -3,7 +3,7 @@ use scraper::{Html, Selector};
 use std::{env, fs, process, sync::Arc};
 use tokio::{spawn, sync::Semaphore};
 
-const CONCURRENY: usize = 32;
+const CONCURRENCY: usize = 32;
 
 fn parse_urls(content: &str) -> Vec<String> {
     content
@@ -15,7 +15,7 @@ fn parse_urls(content: &str) -> Vec<String> {
         .collect()
 }
 
-async fn fetch_title(client: &Client, url: &str) -> Result<String, String> {
+async fn fetch_title_or_human_readable_error(client: &Client, url: &str) -> Result<String, String> {
     let response = client.get(url).send().await.map_err(|e| {
         if e.is_timeout() {
             "Timeout".into()
@@ -64,10 +64,11 @@ async fn main() {
         eprintln!("Failed to read file: {e}");
         process::exit(1);
     });
+
     let urls = parse_urls(&content);
 
     let client = Client::new();
-    let semaphore = Arc::new(Semaphore::new(CONCURRENY));
+    let semaphore = Arc::new(Semaphore::new(CONCURRENCY));
 
     let mut jhs = Vec::new();
     for url in urls {
@@ -76,7 +77,7 @@ async fn main() {
 
         let jh = spawn(async move {
             let _permit = semaphore.acquire().await.unwrap();
-            match fetch_title(&client, &url).await {
+            match fetch_title_or_human_readable_error(&client, &url).await {
                 Ok(title) => format!("- [{title}]({url})"),
                 Err(reason) => format!("- [{reason}]({url})"),
             }
@@ -85,9 +86,14 @@ async fn main() {
         jhs.push(jh);
     }
 
-    for jh in jhs {
-        let mapped = jh.await.unwrap();
+    let mut output = String::new();
 
-        println!("{}", mapped);
+    for jh in jhs {
+        let line = jh.await.unwrap();
+        output.push_str(&format!("{line}\n"));
     }
+
+    let _ = fs::write("output.md", output);
+
+    process::exit(0);
 }
